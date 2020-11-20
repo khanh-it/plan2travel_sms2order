@@ -21,7 +21,7 @@ import {Colors} from 'react-native/Libraries/NewAppScreen';
 import SmsListener from 'react-native-android-sms-listener';
 
 /* @var {String} */
-const APP_VERSION = '1.0.2';
+const {version: APP_VERSION} = require('./package.json');
 
 /**
  * 
@@ -110,7 +110,7 @@ export default class App extends PureComponent
    * >}
    */
   _parseSms = (_sms) => {
-    let pattern = /SD TK ?(\d+) ?([+-])?([\d,.]+)VND ?luc ?(\d{2}-\d{2}-\d{4} \d{2}:\d{2}:\d{2})\. ?(SD ?[+-]?[\d,.]+VND\.) ?Ref ?([\d,.]+)\.(.*)/i;
+    let pattern = /SD TK ?(\d+) ?([+-])?([\d,.]+)VND ?luc ?(\d{2}-\d{2}-\d{4} \d{2}:\d{2}:\d{2})\. ?(SD ?[+-]?[\d,.]+VND\.) ?Ref ?((?:\w*VCB\.)?[\d,.]+)\.(.*)/i;
     let m = new String(_sms.body).trim().match(pattern) || [];
     //
     let sms = Object.assign({}, {
@@ -119,7 +119,7 @@ export default class App extends PureComponent
       'thoi_gian': m[4] || '',
       'noi_dung': m[7] || '',
       'so_tk': m[1] || '',
-      'ref': m[6] || '',
+      // 'ref': m[6] || '',
       'IDs': '',
       // 'so_du': 1 * (m[5] || '').replace(/[,.]/g, ''),
     }, _sms, {
@@ -156,7 +156,8 @@ export default class App extends PureComponent
   _sendAPI = async (sms) => {
     let _api = '__(not send)__';
     // Validate
-    if (sms && (sms.ID || sms.so_tien || sms.ref)) {
+    let _sender = ('' + (sms&& sms.originatingAddress)).trim().toLowerCase();
+    if (sms && (sms.ID || (_sender == 'vietcombank' || _sender == 'vcb'))) {
       _api = '';
       try {
         // Filter data
@@ -215,7 +216,6 @@ export default class App extends PureComponent
             if (idx >= 100) {
               return null;
             }
-            console.log('sms: ', sms);
             return <View key={`sms-${new Date().getTime()}`} style={[styles.sms]}>
               <Text
                 style={[sms.ID ? null : styles.smsTxtNG]}
