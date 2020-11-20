@@ -20,6 +20,9 @@ import {
 import {Colors} from 'react-native/Libraries/NewAppScreen';
 import SmsListener from 'react-native-android-sms-listener';
 
+/* @var {String} */
+const APP_VERSION = '1.0.2';
+
 /**
  * 
  */
@@ -83,7 +86,7 @@ export default class App extends PureComponent
   };
 
   /** @var {String} */
-  _apiUrl = 'https://plan2travel.com.vn/api/sms2order';
+  _apiUrl = 'https://plantotravel.vn/api-sms-payment';
 
   /**
    * @param {*} text 
@@ -107,25 +110,40 @@ export default class App extends PureComponent
    * >}
    */
   _parseSms = (_sms) => {
-    let pattern = /SD TK ?(\d+) ?([+-])?([\d,.]+)VND ?luc ?(\d{2}-\d{2}-\d{4} \d{2}:\d{2}:\d{2})\. ?SD ?[+-]?([\d,.]+)VND\. ?Ref ?([\d,.]+)\.(.*)/i;
+    let pattern = /SD TK ?(\d+) ?([+-])?([\d,.]+)VND ?luc ?(\d{2}-\d{2}-\d{4} \d{2}:\d{2}:\d{2})\. ?(SD ?[+-]?[\d,.]+VND\.) ?Ref ?([\d,.]+)\.(.*)/i;
     let m = new String(_sms.body).trim().match(pattern) || [];
     //
-    // +++
     let sms = Object.assign({}, {
       'ID': '',
       'so_tien': ((m[2] || '') == '-' ? -1 : 1) * (m[3] || '').replace(/[,.]/g, ''),
       'thoi_gian': m[4] || '',
       'noi_dung': m[7] || '',
       'so_tk': m[1] || '',
-      'so_du': 1 * (m[5] || '').replace(/[,.]/g, ''),
+      'ref': m[6] || '',
+      'IDs': '',
+      // 'so_du': 1 * (m[5] || '').replace(/[,.]/g, ''),
+    }, _sms, {
       '_api': '',
-    }, _sms);
+    });
+    // Remove data parts
+    // +++
+    if (m[5]) { // so_du
+      sms.body = sms.body.replace(m[5], '');
+    }
     // +++
     if (sms.noi_dung) {
-      sms.ID = (m = sms.noi_dung.match(pattern = /PT[TVH][\d]+/i) || [])[0] || '';
-      if (sms.ID) {
-        sms.noi_dung = sms.noi_dung.replace(sms.ID, '');
+      m = sms.noi_dung.match(pattern = /PT[TVH][\d]+/ig) || [];
+      // T/H khong co prefix PT[TVH]
+      if (!m.length) {
+        m = sms.noi_dung.match(pattern = /\b\d{4,}\b/ig) || [];
       }
+      if (m.length) {
+        sms.ID = ('' + m[0]).trim();
+        sms.IDs = m.join('; ').trim();
+      }
+    }
+    if (sms.ID === sms.IDs) {
+      delete sms['IDs'];
     }
     // +++
     return sms;
@@ -136,21 +154,34 @@ export default class App extends PureComponent
    * @param {*} sms 
    */
   _sendAPI = async (sms) => {
-    let _api = '0';
+    let _api = '__(not send)__';
     // Validate
-    if (sms && sms.ID) {
-      _api = '1';
+    if (sms && (sms.ID || sms.so_tien || sms.ref)) {
+      _api = '';
       try {
+        // Filter data
+        let post = Object.assign({}, sms);
+        // +++
+        Object.keys(post).forEach((key) => {
+          if (key.indexOf('_') === 0) {
+            delete post[key];
+          }
+        });
+
+        // Send data
         let resp = await fetch(this._apiUrl, {
           method: 'POST',
           headers: {
             Accept: 'application/json',
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(sms)
+          body: JSON.stringify(post)
         });
+        // +++
+        _api = await resp.text();
+        _api = `<<status: ${resp.status}>> ${_api}`.trim();
       } catch (error) {
-        _api = error.message;
+        _api = `Error: ${error.message}.`;
       }
     }
     //
@@ -170,7 +201,10 @@ export default class App extends PureComponent
           />
         </View>
         <View style={[styles.smsBar]}>
-          <Text><Text style={[styles.highlight]}>sms(s):</Text> {smsArr.length}.</Text>
+          <Text>
+            <Text>(Ver: {APP_VERSION}) / </Text>
+            <Text style={[styles.highlight]}>sms(es):</Text> {smsArr.length}.
+          </Text>
         </View>
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
@@ -181,7 +215,8 @@ export default class App extends PureComponent
             if (idx >= 100) {
               return null;
             }
-            return <View key={`sms-${idx}`} style={[styles.sms]}>
+            console.log('sms: ', sms);
+            return <View key={`sms-${new Date().getTime()}`} style={[styles.sms]}>
               <Text
                 style={[sms.ID ? null : styles.smsTxtNG]}
                 selectable={true}
@@ -212,9 +247,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.lighter,
     borderTopWidth: 1,
     borderTopColor: 'gray'
-  },
-  body: {
-    backgroundColor: Colors.white,
   },
   smsBar: {
     padding: 12

@@ -4,13 +4,13 @@
 2. copy and paste this command: Before you copy and paste command in command propmt, make assets folder in project respective path
 as:
 android/app/src/main/assets
+android/app/build/generated/assets/react/debug/
 
 paste this command in command prompt and run:
 
 npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res/
-#
+# update RN 0.5.7 and above
 npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/build/generated/assets/react/debug/index.android.js --assets-dest android/app/src/main/res/
-
 
 3. Then in assets folder there will appear file as index.android.bundle
 4. Finally, run command: react-native run-android(while building new offline apk you need not to start server, your offline js file will help you to build apk file.)
