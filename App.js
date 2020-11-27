@@ -157,7 +157,7 @@ export default class App extends PureComponent
     let _api = '__(not send)__';
     // Validate
     let _sender = ('' + (sms&& sms.originatingAddress)).trim().toLowerCase();
-    if (sms && (sms.ID || (_sender == 'vietcombank' || _sender == 'vcb'))) {
+    if (sms/* && (sms.ID || (_sender == 'vietcombank' || _sender == 'vcb'))*/) {
       _api = '';
       try {
         // Filter data
